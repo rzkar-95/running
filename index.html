@@ -500,6 +500,12 @@
   window.onload = function() {
     initializePermanentDatabase();
     
+    // Solusi Anti-Gagal: Ikat tombol Sign In langsung menggunakan Event Listener dari dalam modul
+    const googleBtn = document.getElementById('btnGoogleAuth');
+    if (googleBtn) {
+      googleBtn.addEventListener('click', handleAuth);
+    }
+    
     // Memantau Status Login Pengguna Secara Real-Time Lewat Firebase
     onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -509,7 +515,7 @@
       }
     });
     
-    // Mapping Fungsi ke Global Window Object agar Bisa Diakses Tombol HTML
+    // Mapping Fungsi ke Global Window Object agar Bisa Diakses Event Lama HTML
     window.handleAuth = handleAuth;
     window.executeLogout = executeLogout;
     window.switchPage = switchPage;
