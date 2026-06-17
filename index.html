@@ -469,7 +469,7 @@
     signOut 
   } from "firebase/auth";
 
-  // 2. KONFIGURASI FIREBASE RESMI (Sesuai Kredensial Gambar Anda)
+  // 2. KONFIGURASI FIREBASE RESMI
   const firebaseConfig = {
     apiKey: "AIzaSyBdjhc9C0_29-ztHR286MQR3gI20rwJtcw",
     authDomain: "running-de1b9.firebaseapp.com",
@@ -486,7 +486,7 @@
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
 
-  // 3. DATABASE LOKAL (STATIONARY ENGINE)
+  // 3. DATABASE LOKAL
   const dbStore = {
     save: (key, data) => localStorage.setItem(`runtrack_${key}`, JSON.stringify(data)),
     get: (key) => JSON.parse(localStorage.getItem(`runtrack_${key}`))
@@ -498,9 +498,12 @@
 
   // 4. RUNTIME UTAMA SAAT HALAMAN DI-LOAD
   window.onload = function() {
-    initializePermanentDatabase();
-    
-    // Solusi Anti-Gagal: Ikat tombol Sign In langsung menggunakan Event Listener dari dalam modul
+    // Membaca data riil dari localStorage jika sudah ada
+    runs = dbStore.get('runs') || [];
+    targets = dbStore.get('targets') || [];
+    connections = dbStore.get('connections') || { strava: false, garmin: false };
+
+    // Mengikat tombol Sign In menggunakan Event Listener dari dalam modul
     const googleBtn = document.getElementById('btnGoogleAuth');
     if (googleBtn) {
       googleBtn.addEventListener('click', handleAuth);
@@ -515,7 +518,7 @@
       }
     });
     
-    // Mapping Fungsi ke Global Window Object agar Bisa Diakses Event Lama HTML
+    // Mapping Fungsi ke Global Window Object agar Bisa Diakses Event HTML
     window.handleAuth = handleAuth;
     window.executeLogout = executeLogout;
     window.switchPage = switchPage;
@@ -555,7 +558,6 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     
-    // Otomatis ubah foto avatar sesuai dengan Akun Google Anda
     if (user.photoURL) {
       const uAvatar = document.getElementById('userAvatar');
       const dAvatar = document.getElementById('dropdownAvatar');
@@ -571,60 +573,14 @@
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     
-    // Tampilkan rangkuman statistik preview di halaman depan sebelum login
-    const placeholderRuns = dbStore.get('runs') || [];
-    const totalKm = placeholderRuns.reduce((acc, r) => acc + r.distance, 0);
-    
+    const totalKm = runs.reduce((acc, r) => acc + r.distance, 0);
     const prevDistEl = document.getElementById('prevDist');
     const prevEffortEl = document.getElementById('prevEffort');
     if (prevDistEl) prevDistEl.textContent = totalKm.toFixed(1);
-    if (prevEffortEl) prevEffortEl.textContent = placeholderRuns.length ? Math.max(...placeholderRuns.map(r=>r.relativeEffort)) : 0;
+    if (prevEffortEl) prevEffortEl.textContent = runs.length ? Math.max(...runs.map(r=>r.relativeEffort)) : 0;
   }
 
-  // 6. GENERATOR DATA HISTORI DUMMY
-  function initializePermanentDatabase() {
-    if (!dbStore.get('runs')) {
-      const generatedRuns = [];
-      const baseDate = new Date('2026-06-17');
-      
-      for(let i=45; i>=0; i--) {
-        const currentDate = new Date(baseDate);
-        currentDate.setDate(baseDate.getDate() - i);
-        
-        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
-        const distance = isWeekend ? parseFloat((10 + Math.random()*12).toFixed(2)) : 5.0;
-        const avgHr = isWeekend ? Math.round(142 + Math.random()*15) : Math.round(132 + Math.random()*10);
-        const timeDuration = Math.round(distance * (5.5 + Math.random())); 
-        const relativeEffort = Math.round(timeDuration * (avgHr / 100) * 0.8);
-
-        generatedRuns.push({
-          id: `act_${Date.now()}_${i}`,
-          title: isWeekend ? "Sunday Long Run Session" : "Daily Base 5K Aerobic",
-          distance,
-          duration: timeDuration,
-          heartRate: avgHr,
-          relativeEffort,
-          date: currentDate.toISOString().split('T')[0],
-          source: Math.random() > 0.5 ? 'Garmin' : 'Strava',
-          paceZone: [10, 20, 50, 15, 5],
-          hrZone: [15, 30, 40, 10, 5]
-        });
-      }
-      dbStore.save('runs', generatedRuns);
-    }
-
-    if (!dbStore.get('targets')) {
-      dbStore.save('targets', [
-        { id: 't1', name: 'Half Marathon Agustus Sub 2:00', timestamp: '2026-06-17' }
-      ]);
-    }
-
-    if (!dbStore.get('connections')) {
-      dbStore.save('connections', { strava: true, garmin: true });
-    }
-  }
-
-  // 7. UTILITY & VISUAL ENGINE INTERFACE
+  // 6. UTILITY & VISUAL ENGINE INTERFACE
   function executeDashboardCalculations() {
     renderFitnessAndFreshness();
     renderAutomationInterface();
@@ -761,31 +717,31 @@
       const hrBox = document.getElementById('hrZoneBox');
       const hrZones = ['Z1 Active Recovery', 'Z2 Aerobic Endurance', 'Z3 Tempo Threshold', 'Z4 Anaerobic Capacity', 'Z5 Max VO2'];
       if (hrBox) {
-        hrBox.innerHTML = lastRun.hrZone.map((val, idx) => `
+        hrBox.innerHTML = lastRun.hrZone ? lastRun.hrZone.map((val, idx) => `
           <div class="zone-row">
             <div class="zone-lbl">${hrZones[idx].substring(0,2)}</div>
             <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--orange);"></div></div>
             <div class="zone-val">${val}%</div>
           </div>
-        `).join('');
+        `).join('') : '';
       }
 
       const paceBox = document.getElementById('paceZoneBox');
       const paceZones = ['Easy Pace', 'Marathon Pace', 'Threshold Pace', 'Interval Pace', 'Repetition'];
       if (paceBox) {
-        paceBox.innerHTML = lastRun.paceZone.map((val, idx) => `
+        paceBox.innerHTML = lastRun.paceZone ? lastRun.paceZone.map((val, idx) => `
           <div class="zone-row">
             <div class="zone-lbl">${paceZones[idx].substring(0,4)}</div>
             <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--purple);"></div></div>
             <div class="zone-val">${val}%</div>
           </div>
-        `).join('');
+        `).join('') : '';
       }
     }
 
     const container = document.getElementById('runStreamContainer');
     if (container) {
-      container.innerHTML = runs.map(r => `
+      container.innerHTML = runs.length ? runs.map(r => `
         <div class="run-node">
           <div class="run-node-main">
             <div class="run-node-icon">${r.source === 'Strava' ? '🧡' : '💙'}</div>
@@ -799,7 +755,7 @@
             <div class="run-node-lbl">${r.duration}m &bull; ${r.heartRate} bpm</div>
           </div>
         </div>
-      `).join('');
+      `).join('') : '<div style="color:var(--muted); font-size:0.85rem; padding: 1rem; text-align: center;">Belum ada riwayat aktivitas.</div>';
     }
   }
 
@@ -923,10 +879,10 @@
         </div>
       </div>
     `;
-  }
+  } // <--- SEKARANG SUDAH DITUTUP DENGAN BENAR
 
   function toggleProfileDropdown(e) {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     const dropdown = document.getElementById('profileDropdown');
     if (dropdown) dropdown.classList.toggle('open');
   }
