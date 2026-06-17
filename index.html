@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RunTrack Pro — Advanced Performance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #060913;
+    --surface:   #0d1326;
+    --card:      #141d36;
+    --border:    #223159;
+    --blue:      #00D4FF;
+    --green:     #39FF14;
+    --orange:    #FF6B35;
+    --purple:    #9B59FF;
+    --pink:      #FF2A85;
+    --text:      #F1F5F9;
+    --muted:     #64748B;
+    --radius:    16px;
+  }
+  
+  /* ───── RESET & BASE ───── */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+  /* ───── WELCOME SCREEN ───── */
+  #loginScreen {
+    position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 80% 20%, rgba(0,212,255,0.15), transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(57,255,20,0.1), transparent 50%), var(--bg);
+    padding: 1.5rem; overflow-y: auto;
+  }
+  .welcome-container {
+    width: 100%; max-width: 1100px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 3rem; align-items: center;
+  }
+  .welcome-hero { display: flex; flex-direction: column; gap: 1.2rem; }
+  .sport-badge {
+    align-self: flex-start; background: linear-gradient(90deg, rgba(57,255,20,0.2), transparent);
+    border-left: 3px solid var(--green); padding: 0.4rem 1rem; font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--green);
+  }
+  .welcome-hero h1 {
+    font-family: 'Rajdhani', sans-serif; font-size: 4rem; font-weight: 700; line-height: 0.95;
+    background: linear-gradient(135deg, var(--text) 30%, var(--muted)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .welcome-hero h1 span { background: linear-gradient(135deg, var(--blue), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .welcome-hero p { color: var(--muted); font-size: 1.02rem; line-height: 1.6; max-width: 500px; }
+  .hero-stats-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .h-stat { background: rgba(20,29,54,0.6); border: 1px solid var(--border); padding: 1rem; border-radius: 12px; }
+  .h-stat div { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; color: var(--blue); }
+  .h-stat span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); padding: 3rem 2.5rem; border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+  }
+  .login-box::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--blue), var(--green)); }
+  .login-box h2 { font-family: 'Rajdhani', sans-serif; font-size: 2rem; margin-bottom: 0.5rem; }
+  .login-box p { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+  
+  .btn-google {
+    display: flex; align-items: center; justify-content: center; gap: 1rem; background: var(--text);
+    color: #000; border: none; border-radius: 12px; padding: 1rem; width: 100%; font-size: 1rem;
+    font-weight: 700; cursor: pointer; transition: 0.2s; font-family: 'Inter', sans-serif;
+  }
+  .btn-google:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255,255,255,0.15); }
+  
+  /* ───── NAVIGATION SHELL ───── */
+  #app { display: none; min-height: 100vh; flex-direction: column; }
+  nav {
+    position: sticky; top: 0; z-index: 100; background: rgba(6,9,19,0.85); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem;
+  }
+  .nav-brand { font-family: 'Rajdhani', sans-serif; font-size: 1.6rem; font-weight: 700; color: #fff; letter-spacing: 0.05em; }
+  .nav-brand span { color: var(--green); }
+  .nav-tabs { display: flex; gap: 0.25rem; background: var(--surface); border-radius: 12px; padding: 0.35rem; }
+  .nav-tab {
+    background: none; border: none; color: var(--muted); padding: 0.5rem 1.2rem; border-radius: 8px;
+    cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s; white-space: nowrap;
+  }
+  .nav-tab.active { background: var(--card); color: var(--blue); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  
+  /* ───── PROFILE CONTROL DROPDOWN ───── */
+  .nav-user { display: flex; align-items: center; position: relative; }
+  .avatar-trigger {
+    display: flex; align-items: center; gap: 0.5rem; background: var(--surface);
+    border: 1px solid var(--border); padding: 0.35rem 0.65rem; border-radius: 30px; cursor: pointer; transition: 0.2s;
+  }
+  .avatar-trigger img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--blue); }
+  .avatar-trigger i { font-size: 0.75rem; color: var(--muted); }
+  
+  .profile-dropdown {
+    position: absolute; top: 52px; right: 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; width: 320px; padding: 1.5rem; display: none; flex-direction: column; gap: 1.25rem;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.6); z-index: 500;
+  }
+  .profile-dropdown.open { display: flex; }
+  
+  .dropdown-header { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  .dropdown-header img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--green); object-fit: cover; }
+  .dropdown-header h3 { font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; }
+  
+  .avatar-selectors { display: flex; flex-direction: column; gap: 0.5rem; }
+  .avatar-selectors span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+  .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+  .avatar-grid img { width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: 0.2s; }
+  .avatar-grid img:hover { border-color: var(--green); transform: scale(1.05); }
+
+  .conn-btn { width: 100%; padding: 0.75rem; border-radius: 10px; border: none; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.85rem; transition: 0.2s; margin-top: 0.5rem; }
+  .conn-btn.strava { background: #FC4C02; color: #fff; }
+  .conn-btn.garmin { background: #000; color: #fff; border: 1px solid var(--border); }
+  .conn-btn.active { background: rgba(57,255,20,0.15); color: var(--green); border: 1px solid var(--green); }
+  .conn-btn.wrapper-gap { margin-bottom: 0.5rem; }
+  .conn-status { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem; font-size: 0.75rem; padding-left: 0.25rem; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  .btn-logout { background: rgba(255,42,133,0.1); border: 1px solid rgba(255,42,133,0.2); color: var(--pink); padding: 0.6rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: 0.2s; margin-top: 0.5rem; }
+  .btn-logout:hover { background: var(--pink); color: #000; }
+
+  /* ───── CORE LAYOUT ENGINE ───── */
+  main { flex: 1; padding: 2rem; max-width: 1440px; margin: 0 auto; width: 100%; }
+  .page { display: none; }
+  .page.active { display: block; }
+  
+  .grid-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .grid-55 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; align-items: start; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; position: relative; }
+  .panel-title { font-family: 'Rajdhani', sans-serif; font-size: 1.15rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text); }
+  .panel-title i { color: var(--blue); }
+
+  /* ───── METRICS & CHARTS ───── */
+  .ff-metrics { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; font-family: 'Rajdhani', sans-serif; }
+  .ff-m { display: flex; align-items: center; gap: 0.4rem; font-size: 1.1rem; font-weight: 600; }
+  .ff-graph { display: flex; align-items: flex-end; gap: 4px; height: 185px; border-bottom: 1px solid var(--border); padding-bottom: 4px; position: relative; width: 100%; }
+  .ff-col { flex: 1; height: 100%; display: flex; align-items: flex-end; position: relative; }
+  .ff-point-ctl { width: 100%; border-radius: 2px 2px 0 0; background: var(--blue); opacity: 0.8; }
+  .ff-point-atl { width: 100%; border-radius: 2px 2px 0 0; background: var(--pink); opacity: 0.4; margin-left: -50%; }
+  .ff-point-tsb { width: 100%; background: var(--green); height: 2px; position: absolute; left: 0; }
+  .ff-axis-lbl { display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.7rem; color: var(--muted); }
+
+  /* ───── TARGETS & MILESTONES (ANTI-SHIFT FIX) ───── */
+  .target-input-row { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+  .t-input { flex: 1; background: var(--card); border: 1px solid var(--border); color: #fff; padding: 0.65rem 1rem; border-radius: 10px; font-size: 0.9rem; outline: none; width: 100%; }
+  .btn-t-add { background: var(--blue); color: #000; border: none; padding: 0 1.25rem; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+  
+  .target-scroll-area { max-height: 250px; overflow-y: auto; padding-right: 0.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .target-item { background: var(--card); border: 1px solid var(--border); padding: 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .target-info { min-width: 0; flex: 1; }
+  .target-info h4 { font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .target-info p { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn-t-del { background: none; border: none; color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0.25rem; }
+  .btn-t-del:hover { color: var(--pink); }
+
+  /* ───── TABLE & ZONES ───── */
+  .segment-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .segment-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 500px; }
+  .segment-table th { text-align: left; color: var(--muted); padding-bottom: 0.75rem; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+  .segment-table td { padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .pr-badge { background: rgba(255,107,53,0.15); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.70rem; font-weight: 700; }
+  
+  .zone-container { display: flex; flex-direction: column; gap: 0.6rem; }
+  .zone-row { display: flex; align-items: center; gap: 1rem; font-size: 0.8rem; }
+  .zone-lbl { width: 60px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
+  .zone-bar-bg { flex: 1; height: 8px; background: var(--card); border-radius: 99px; overflow: hidden; }
+  .zone-bar-fg { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+  .zone-val { width: 45px; text-align: right; font-family: 'Rajdhani', sans-serif; font-weight: 600; flex-shrink: 0; }
+
+  /* ───── SUMMARY FINDER ───── */
+  .summary-filter { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .sm-select { flex: 1; background: var(--card); border: 1px solid var(--border); color: #fff; padding: 0.5rem; border-radius: 8px; font-size: 0.85rem; outline: none; }
+  .summary-metrics-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: var(--card); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border); }
+  .sm-box { text-align: center; }
+  .sm-box h5 { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; margin-bottom: 0.25rem; }
+  .sm-box div { font-family: 'Rajdhani', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--text); }
+
+  /* ───── RUN STREAM PIPELINE ───── */
+  .run-stream { display: flex; flex-direction: column; gap: 0.75rem; max-height: 380px; overflow-y: auto; padding-right: 0.25rem; }
+  .run-node { background: var(--card); border: 1px solid var(--border); padding: 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .run-node-main { display: flex; gap: 0.75rem; align-items: center; min-width: 0; }
+  .run-node-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .run-node-info { min-width: 0; }
+  .run-node-title { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .run-node-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .run-node-data { text-align: right; font-family: 'Rajdhani', sans-serif; flex-shrink: 0; }
+  .run-node-val { font-size: 1.05rem; font-weight: 700; color: var(--blue); }
+  .run-node-lbl { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; }
+
+  /* ───── AI BOX PANEL ───── */
+  .ai-plan-box { background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(57,255,20,0.02)); border: 1px solid rgba(0,212,255,0.15); border-radius: 12px; padding: 1.25rem; min-height: 250px; display: flex; flex-direction: column; justify-content: flex-start; }
+  .ai-plan-text { font-size: 0.88rem; line-height: 1.6; color: var(--text); }
+  .ai-period-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  
+  #toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);color:var(--text);padding:0.75rem 1.5rem;border-radius:10px;font-size:0.85rem;opacity:0;transition:0.3s;z-index:3000;pointer-events:none;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* =========================================================================
+     ⚡ RESPONSIVE MEDIA QUERIES ENGINE
+     ========================================================================= */
+  @media (max-width: 1024px) {
+    .welcome-container { grid-template-columns: 1fr; gap: 2.5rem; text-align: center; }
+    .welcome-hero h1 { font-size: 3.2rem; }
+    .welcome-hero p { margin: 0 auto; }
+    .sport-badge { align-self: center; }
+    .hero-stats-preview { max-width: 500px; margin: 1rem auto 0 auto; width: 100%; }
+    .login-box { max-width: 500px; margin: 0 auto; width: 100%; padding: 2.5rem 2rem; }
+
+    .grid-21, .grid-55, .grid-3 { grid-template-columns: 1fr; gap: 1.25rem; }
+    main { padding: 1.5rem; }
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 0.75rem 1rem; flex-direction: column; gap: 0.85rem; align-items: center; position: relative; }
+    .nav-brand { order: 1; }
+    .nav-user { order: 2; position: absolute; right: 1rem; top: 0.75rem; }
+    .nav-tabs { order: 3; width: 100%; justify-content: center; overflow-x: auto; }
+    .nav-tab { padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+    
+    .profile-dropdown { width: 290px; right: -0.5rem; }
+    .welcome-hero h1 { font-size: 2.5rem; }
+    .panel { padding: 1.25rem; }
+    .panel-title { font-size: 1.05rem; margin-bottom: 1rem; }
+    
+    .summary-metrics-box { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .ai-period-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+    
+    .target-input-row { flex-direction: column; }
+    .btn-t-add { width: 100%; padding: 0.65rem; }
+  }
+
+  @media (max-width: 480px) {
+    .nav-brand { font-size: 1.4rem; margin-right: auto; padding-left: 0.25rem; }
+    .nav-user { top: 0.65rem; }
+    .avatar-trigger { padding: 0.25rem 0.4rem; }
+    .avatar-trigger span { display: none; }
+    
+    .ff-metrics { gap: 0.5rem; }
+    .ff-m { font-size: 0.95rem; }
+    .ff-graph { height: 140px; gap: 2px; }
+    
+    .run-node { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .run-node-data { text-align: left; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ WELCOME SCREEN ═══════════════ -->
+<div id="loginScreen">
+  <div class="welcome-container">
+    <div class="welcome-hero">
+      <div class="sport-badge">High Performance Ecosystem</div>
+      <h1>Unleash Your<br><span>True Potential.</span></h1>
+      <p>Hubhubungkaan Strava dan Garmin Connect Anda untuk membuka analisis performa tingkat elit, kalkulasi kelelahan jantung otomatis, serta penyesuaian menu latihan adaptif bertenaga AI.</p>
+      <div class="hero-stats-preview">
+        <div class="h-stat">
+          <div id="prevDist">0.0</div>
+          <span>Total Synchronized Km</span>
+        </div>
+        <div class="h-stat">
+          <div id="prevEffort">0</div>
+          <span>Max Relative Effort</span>
+        </div>
+      </div>
+    </div>
+    <div class="login-box">
+      <h2>Mulai Sinkronisasi</h2>
+      <p>Gunakan enkripsi Google Secure Auth untuk mengamankan repositori data olahraga Anda.</p>
+      <button class="btn-google" onclick="handleAuth()">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.8 19 13 24 13c3.1 0 5.8 1.1 7.9 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.3 35.2 26.8 36 24 36c-5.2 0-9.6-3.1-11.3-7.5l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.2 5.2c-.4.4 6.8-5 6.8-14.9 0-1.3-.1-2.6-.4-3.9z"/></svg>
+        Sign In with Secure Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN APPLICATION SHELL ═══════════════ -->
+<div id="app">
+  <nav>
+    <div class="nav-brand">RunTrack<span>Pro</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchPage('dashboard', this)">📊 Performance</button>
+      <button class="nav-tab" onclick="switchPage('analysis', this)">📈 Deep Analysis</button>
+      <button class="nav-tab" onclick="switchPage('targets', this)">🎯 AI Targets</button>
+    </div>
+    
+    <div class="nav-user">
+      <div class="avatar-trigger" onclick="toggleProfileDropdown(event)">
+        <img id="userAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Runner Profile">
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      
+      <div class="profile-dropdown" id="profileDropdown" onclick="event.stopPropagation()">
+        <div class="dropdown-header">
+          <img id="dropdownAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
+          <h3>Elite Athlete Hub</h3>
+        </div>
+        
+        <div class="avatar-selectors">
+          <span>Ganti Avatar Atletik</span>
+          <div class="avatar-grid">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" onclick="changeAvatar(this.src)">
+            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" onclick="changeAvatar(this.src)">
+            <img src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100" onclick="changeAvatar(this.src)">
+            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100" onclick="changeAvatar(this.src)">
+          </div>
+        </div>
+        
+        <div style="border-top: 1px solid var(--border); padding-top: 0.75rem;">
+          <span style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; font-weight: 600;">API Connectivity</span>
+          <button class="conn-btn strava" id="btnStrava" onclick="toggleConnect('strava')"><i class="fab fa-strava"></i> Strava Live Pipeline</button>
+          <div class="conn-status" id="statusStrava"><div class="dot"></div> <span>Disconnected</span></div>
+
+          <button class="conn-btn garmin" id="btnGarmin" onclick="toggleConnect('garmin')"><i class="fas fa-clock"></i> Garmin Cloud Sync</button>
+          <div class="conn-status" id="statusGarmin"><div class="dot"></div> <span>Disconnected</span></div>
+        </div>
+
+        <button class="btn-logout" onclick="executeLogout()"><i class="fas fa-sign-out-alt"></i> Logout Akun</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- ─── PAGE 1: CORE DASHBOARD ─── -->
+    <div class="page active" id="page-dashboard">
+      <div class="grid-21">
+        <!-- Fitness & Freshness -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-chart-line"></i> Fitness & Freshness Trend</div>
+          <div class="ff-metrics">
+            <div class="ff-m" style="color:var(--blue)"><i class="fas fa-heartbeat"></i> Fitness: <span id="valFitness">48</span></div>
+            <div class="ff-m" style="color:var(--pink)"><i class="fas fa-fire"></i> Fatigue: <span id="valFatigue">32</span></div>
+            <div class="ff-m" style="color:var(--green)"><i class="fas fa-bolt"></i> Form: <span id="valForm">+16</span></div>
+          </div>
+          <div class="ff-graph" id="ffGraph"></div>
+          <div class="ff-axis-lbl"><span>30 Hari Lalu</span><span>Hari Ini</span></div>
+        </div>
+
+        <!-- Relative Effort Box -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-wave-square"></i> Relative Effort Score</div>
+          <div style="text-align: center; padding: 1rem 0;">
+            <div id="relativeEffortBig" style="font-family:'Rajdhani',sans-serif; font-size:4rem; font-weight:700; color:var(--orange);">0</div>
+            <p id="relativeEffortStatus" style="font-size:0.85rem; color:var(--muted); margin-top:0.5rem;">Optimal Training Load</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <!-- Target Habit Realisasi -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-bullseye"></i> Habit Tracker Realization</div>
+          <div class="zone-container" id="habitRealizationBox"></div>
+        </div>
+        
+        <!-- Summary Finder -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-search"></i> Monthly Summary Finder</div>
+          <div class="summary-filter">
+            <select class="sm-select" id="sumMonth" onchange="loadMonthlySummary()">
+              <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
+              <option value="04">April</option><option value="05">Mei</option><option value="06" selected>Juni</option>
+              <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
+              <option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option>
+            </select>
+            <select class="sm-select" id="sumYear" onchange="loadMonthlySummary()">
+              <option value="2026" selected>2026</option><option value="2025">2025</option>
+            </select>
+          </div>
+          <div class="summary-metrics-box">
+            <div class="sm-box"><h5>Dist</h5><div id="smDist">0k</div></div>
+            <div class="sm-box"><h5>Sesi</h5><div id="smSesi">0</div></div>
+            <div class="sm-box"><h5>AvgHR</h5><div id="smHR">-</div></div>
+            <div class="sm-box"><h5>Time</h5><div id="smTime">0m</div></div>
+          </div>
+        </div>
+
+        <!-- Automation Pipeline Info Badge -->
+        <div class="panel" style="display:flex; flex-direction:column; justify-content:center; background:linear-gradient(135deg, rgba(34,49,89,0.4), transparent);">
+          <div style="font-size: 1.5rem; margin-bottom: 0.3rem;">⚡</div>
+          <h4 style="font-family:'Rajdhani',sans-serif; font-size:1.1rem; color:var(--blue); margin-bottom:0.25rem;">Automated Ingestion</h4>
+          <p style="font-size:0.78rem; color:var(--muted); line-height:1.5;">Seluruh hitungan makro diekstraksi dari satelit awan. Pengaturan API kunci dapat diakses melalui menu klik pada foto profil Anda.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── PAGE 2: DEEP ANALYSIS ─── -->
+    <div class="page" id="page-analysis">
+      <div class="grid-21">
+        <!-- Segment Performance -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-trophy"></i> Historical Segment Efforts (PR Tracker)</div>
+          <div class="segment-table-wrapper">
+            <table class="segment-table">
+              <thead>
+                <tr><th>Segment Name</th><th>Distance</th><th>Effort Time</th><th>Rank Status</th></tr>
+              </thead>
+              <tbody id="segmentEffortBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Zones Profile -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-chart-bar"></i> Post-Run Zones Distribution</div>
+          <h4 style="font-size:0.8rem; text-transform:uppercase; color:var(--blue); margin-bottom:0.5rem;">Heart Rate Zones</h4>
+          <div class="zone-container" id="hrZoneBox" style="margin-bottom:1.5rem;"></div>
+          <h4 style="font-size:0.8rem; text-transform:uppercase; color:var(--purple); margin-bottom:0.5rem;">Pace Zones</h4>
+          <div class="zone-container" id="paceZoneBox"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><i class="fas fa-stream"></i> Automated Stream Pipeline (Strava/Garmin Ingested)</div>
+        <div class="run-stream" id="runStreamContainer"></div>
+      </div>
+    </div>
+
+    <!-- ─── PAGE 3: AI TARGETS & PERIODIZATION (ROBUST MODIFIED ARCHITECTURE) ─── -->
+    <div class="page" id="page-targets">
+      <div class="grid-55">
+        <!-- Set Future Milestones Card -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-bullseye"></i> Set Future Milestones</div>
+          <div class="target-input-row">
+            <input type="text" class="t-input" id="targetInputName" placeholder="Contoh: HM Agustus Sub 2:00">
+            <button class="btn-t-add" onclick="addNewRaceTarget()">Proyeksikan Menu</button>
+          </div>
+          <!-- Ditambahkan area gulir khusus agar komponen tidak meregang ke bawah -->
+          <div class="target-scroll-area" id="targetListContainer"></div>
+        </div>
+
+        <!-- Habitual AI Target Generation Card -->
+        <div class="panel">
+          <div class="panel-title"><i class="fas fa-robot"></i> Habitual AI Target Generation</div>
+          <div class="ai-plan-box">
+            <div style="font-weight:600; font-size:0.9rem; color:var(--green); margin-bottom:0.5rem;">Rekomendasi Target AI</div>
+            <div class="ai-plan-text" id="aiHabitTargetText">Menganalisis matriks kebiasaan mingguan...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Tailored Training Schedule Card -->
+      <div class="panel">
+        <div class="panel-title"><i class="fas fa-calendar-alt"></i> AI Tailored Training Schedule (Periodization Menu)</div>
+        <div id="aiDynamicTrainingMenu" style="font-size:0.9rem; line-height:1.6; color:var(--muted);">Masukkan target pencapaian balapan ke depan untuk memicu neural model menyusun periodisasi rencana menu latihan harian otomatis di sini.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════ ARCHITECTURE LOGIC ENGINE (VANILLA JS REST PERMANENT) ═══════════════ -->
+<script type="module">
+  const dbStore = {
+    save: (key, data) => localStorage.setItem(`runtrack_${key}`, JSON.stringify(data)),
+    get: (key) => JSON.parse(localStorage.getItem(`runtrack_${key}`))
+  };
+
+  function initializePermanentDatabase() {
+    if (!dbStore.get('runs')) {
+      const generatedRuns = [];
+      const baseDate = new Date('2026-06-17');
+      
+      for(let i=45; i>=0; i--) {
+        const currentDate = new Date(baseDate);
+        currentDate.setDate(baseDate.getDate() - i);
+        
+        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+        const distance = isWeekend ? parseFloat((10 + Math.random()*12).toFixed(2)) : 5.0;
+        const avgHr = isWeekend ? Math.round(142 + Math.random()*15) : Math.round(132 + Math.random()*10);
+        const timeDuration = Math.round(distance * (5.5 + Math.random())); 
+        const relativeEffort = Math.round(timeDuration * (avgHr / 100) * 0.8);
+
+        generatedRuns.push({
+          id: `act_${Date.now()}_${i}`,
+          title: isWeekend ? "Sunday Long Run Session" : "Daily Base 5K Aerobic",
+          distance,
+          duration: timeDuration,
+          heartRate: avgHr,
+          relativeEffort,
+          date: currentDate.toISOString().split('T')[0],
+          source: Math.random() > 0.5 ? 'Garmin' : 'Strava',
+          paceZone: [10, 20, 50, 15, 5],
+          hrZone: [15, 30, 40, 10, 5]
+        });
+      }
+      dbStore.save('runs', generatedRuns);
+    }
+
+    if (!dbStore.get('targets')) {
+      dbStore.save('targets', [
+        { id: 't1', name: 'Half Marathon Agustus Sub 2:00', timestamp: '2026-06-17' }
+      ]);
+    }
+
+    if (!dbStore.get('connections')) {
+      dbStore.save('connections', { strava: true, garmin: true });
+    }
+  }
+
+  let runs = [];
+  let targets = [];
+  let connections = { strava: false, garmin: false };
+
+  window.onload = function() {
+    initializePermanentDatabase();
+    checkAuthenticationState();
+    
+    window.handleAuth = handleAuth;
+    window.executeLogout = executeLogout;
+    window.switchPage = switchPage;
+    window.toggleConnect = toggleConnect;
+    window.addNewRaceTarget = addNewRaceTarget;
+    window.deleteRaceTarget = deleteRaceTarget;
+    window.loadMonthlySummary = loadMonthlySummary;
+    window.toggleProfileDropdown = toggleProfileDropdown;
+    window.changeAvatar = changeAvatar;
+  };
+
+  function checkAuthenticationState() {
+    const authSession = sessionStorage.getItem('runtrack_session');
+    if(authSession) {
+      runs = dbStore.get('runs') || [];
+      targets = dbStore.get('targets') || [];
+      connections = dbStore.get('connections') || { strava: false, garmin: false };
+      
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      
+      executeDashboardCalculations();
+    } else {
+      const placeholderRuns = dbStore.get('runs') || [];
+      const totalKm = placeholderRuns.reduce((acc, r) => acc + r.distance, 0);
+      document.getElementById('prevDist').textContent = totalKm.toFixed(1);
+      document.getElementById('prevEffort').textContent = Math.max(...placeholderRuns.map(r=>r.relativeEffort));
+    }
+  }
+
+  function handleAuth() {
+    sessionStorage.setItem('runtrack_session', 'true');
+    window.showToast("🔓 Authenticated via Google Cloud Security Ecosystem.");
+    checkAuthenticationState();
+  }
+
+  function executeLogout() {
+    sessionStorage.removeItem('runtrack_session');
+    location.reload();
+  }
+
+  function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profileDropdown').classList.toggle('open');
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('profileDropdown').classList.remove('open');
+  });
+
+  function changeAvatar(src) {
+    document.getElementById('userAvatar').src = src;
+    document.getElementById('dropdownAvatar').src = src;
+    window.showToast("👤 Profile avatar updated successfully.");
+  }
+
+  function switchPage(pageId, element) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`page-${pageId}`).classList.add('active');
+    element.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  window.showToast = function(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  };
+
+  function executeDashboardCalculations() {
+    renderFitnessAndFreshness();
+    renderAutomationInterface();
+    renderHabitualMetrics();
+    loadMonthlySummary();
+    renderSegmentsAndStream();
+    renderRaceTargets();
+    generateAiHabitTargets();
+  }
+
+  function renderFitnessAndFreshness() {
+    const reversed = [...runs].reverse().slice(0, 30);
+    const graphBox = document.getElementById('ffGraph');
+    graphBox.innerHTML = '';
+
+    let currentFitness = 42; 
+    let currentFatigue = 30;
+
+    reversed.forEach((run, idx) => {
+      currentFitness = Math.round((run.relativeEffort * 0.1) + (currentFitness * 0.9));
+      currentFatigue = Math.round((run.relativeEffort * 0.25) + (currentFatigue * 0.7));
+      let form = currentFitness - currentFatigue;
+
+      const col = document.createElement('div');
+      col.className = 'ff-col';
+
+      const fitBar = document.createElement('div');
+      fitBar.className = 'ff-point-ctl';
+      fitBar.style.height = `${Math.min(currentFitness * 1.5, 100)}%`;
+
+      const fatBar = document.createElement('div');
+      fatBar.className = 'ff-point-atl';
+      fatBar.style.height = `${Math.min(currentFatigue * 1.5, 100)}%`;
+
+      const formLine = document.createElement('div');
+      formLine.className = 'ff-point-tsb';
+      const alignedFormHeight = Math.max(0, Math.min(100, 50 + (form * 1.2)));
+      formLine.style.bottom = `${alignedFormHeight}%`;
+
+      col.appendChild(fitBar);
+      col.appendChild(fatBar);
+      col.appendChild(formLine);
+      graphBox.appendChild(col);
+
+      if (idx === reversed.length - 1) {
+        document.getElementById('valFitness').textContent = currentFitness;
+        document.getElementById('valFatigue').textContent = currentFatigue;
+        document.getElementById('valForm').textContent = (form > 0 ? '+' : '') + form;
+        document.getElementById('relativeEffortBig').textContent = run.relativeEffort;
+        
+        const statusEl = document.getElementById('relativeEffortStatus');
+        if (run.relativeEffort > 80) {
+          statusEl.textContent = "High Training Impulse";
+          statusEl.style.color = "var(--orange)";
+        } else {
+          statusEl.textContent = "Optimal Stimulus (Productive)";
+          statusEl.style.color = "var(--green)";
+        }
+      }
+    });
+  }
+
+  function renderAutomationInterface() {
+    ['strava', 'garmin'].forEach(platform => {
+      const btn = document.getElementById(`btn${platform.charAt(0).toUpperCase() + platform.slice(1)}`);
+      const status = document.getElementById(`status${platform.charAt(0).toUpperCase() + platform.slice(1)}`);
+      
+      if(connections[platform]) {
+        btn.classList.add('active');
+        btn.innerHTML = `<i class="fas fa-check-circle"></i> Linked to ${platform.toUpperCase()}`;
+        status.innerHTML = `<div class="dot active"></div> <span style="color:var(--green)">Stream Active Sync</span>`;
+      } else {
+        btn.classList.remove('active');
+        btn.innerHTML = `Connect ${platform.toUpperCase()}`;
+        status.innerHTML = `<div class="dot"></div> <span style="color:var(--muted)">Pipeline Inactive</span>`;
+      }
+    });
+  }
+
+  function toggleConnect(platform) {
+    connections[platform] = !connections[platform];
+    dbStore.save('connections', connections);
+    renderAutomationInterface();
+    window.showToast(`🔄 Connection API pipeline ${platform.toUpperCase()} updated.`);
+  }
+
+  function renderHabitualMetrics() {
+    const last7Days = runs.slice(0, 7);
+    const completedDays = last7Days.filter(r => r.distance >= 5).length;
+    
+    const habitBox = document.getElementById('habitRealizationBox');
+    habitBox.innerHTML = `
+      <div style="font-size:0.85rem; margin-bottom:0.25rem;">Daily 5K Streak Consistency</div>
+      <div style="font-family:'Rajdhani', sans-serif; font-size:1.5rem; font-weight:700; color:var(--blue);">${completedDays} / 7 <span style="font-size:0.8rem; color:var(--muted)">Hari</span></div>
+      <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${(completedDays/7)*100}%; background:var(--blue);"></div></div>
+    `;
+  }
+
+  function loadMonthlySummary() {
+    const m = document.getElementById('sumMonth').value;
+    const y = document.getElementById('sumYear').value;
+    
+    const filtered = runs.filter(r => r.date.startsWith(`${y}-${m}`));
+    const dist = filtered.reduce((acc, r) => acc + r.distance, 0);
+    const time = filtered.reduce((acc, r) => acc + r.duration, 0);
+    const hr = filtered.length ? Math.round(filtered.reduce((acc, r) => acc + r.heartRate, 0) / filtered.length) : 0;
+
+    document.getElementById('smDist').textContent = `${dist.toFixed(0)}k`;
+    document.getElementById('smSesi').textContent = filtered.length;
+    document.getElementById('smHR').textContent = hr ? `${hr}` : '-';
+    document.getElementById('smTime').textContent = `${time}m`;
+  }
+
+  function renderSegmentsAndStream() {
+    const segmentBody = document.getElementById('segmentEffortBody');
+    segmentBody.innerHTML = `
+      <tr><td><b>Summarecon Loop Sprint</b></td><td>1.2 km</td><td>04:42</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
+      <tr><td><b>Sudirman Flyover Climb</b></td><td>0.8 km</td><td>03:15</td><td><span class="pr-badge" style="background:rgba(0,212,255,0.15); color:var(--blue);">PR Usaha #2</span></td></tr>
+      <tr><td><b>Bekasi Barat flat flat</b></td><td>2.5 km</td><td>11:04</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
+    `;
+
+    const lastRun = runs[0];
+    if(lastRun) {
+      const hrBox = document.getElementById('hrZoneBox');
+      const hrZones = ['Z1 Active Recovery', 'Z2 Aerobic Endurance', 'Z3 Tempo Threshold', 'Z4 Anaerobic Capacity', 'Z5 Max VO2'];
+      hrBox.innerHTML = lastRun.hrZone.map((val, idx) => `
+        <div class="zone-row">
+          <div class="zone-lbl">${hrZones[idx].substring(0,2)}</div>
+          <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--orange);"></div></div>
+          <div class="zone-val">${val}%</div>
+        </div>
+      `).join('');
+
+      const paceBox = document.getElementById('paceZoneBox');
+      const paceZones = ['Easy Pace', 'Marathon Pace', 'Threshold Pace', 'Interval Pace', 'Repetition'];
+      paceBox.innerHTML = lastRun.paceZone.map((val, idx) => `
+        <div class="zone-row">
+          <div class="zone-lbl">${paceZones[idx].substring(0,4)}</div>
+          <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--purple);"></div></div>
+          <div class="zone-val">${val}%</div>
+        </div>
+      `).join('');
+    }
+
+    const container = document.getElementById('runStreamContainer');
+    container.innerHTML = runs.map(r => `
+      <div class="run-node">
+        <div class="run-node-main">
+          <div class="run-node-icon">${r.source === 'Strava' ? '🧡' : '💙'}</div>
+          <div class="run-node-info">
+            <div class="run-node-title">${r.title}</div>
+            <div class="run-node-meta">${r.date} &bull; API Sync</div>
+          </div>
+        </div>
+        <div class="run-node-data">
+          <div class="run-node-val">${r.distance.toFixed(1)} Km</div>
+          <div class="run-node-lbl">${r.duration}m &bull; ${r.heartRate} bpm</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderRaceTargets() {
+    const container = document.getElementById('targetListContainer');
+    if (targets.length === 0) {
+      container.innerHTML = `<div style="font-size:0.85rem; color:var(--muted); text-align:center; padding: 2rem 0;">Belum ada target kustom yang dimasukkan.</div>`;
+    } else {
+      container.innerHTML = targets.map(t => `
+        <div class="target-item">
+          <div class="target-info">
+            <h4>${t.name}</h4>
+            <p>Didaftarkan pada: ${t.timestamp} &bull; Menu kalkulasi periodisasi aktif</p>
+          </div>
+          <button class="btn-t-del" onclick="deleteRaceTarget('${t.id}')"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      `).join('');
+    }
+
+    buildAiDynamicMenuPlan();
+  }
+
+  function addNewRaceTarget() {
+    const value = document.getElementById('targetInputName').value.trim();
+    if(!value) return;
+
+    const newTarget = {
+      id: 't_' + Date.now(),
+      name: value,
+      timestamp: new Date().toISOString().split('T')[0]
+    };
+
+    targets.push(newTarget);
+    dbStore.save('targets', targets);
+    document.getElementById('targetInputName').value = '';
+    renderRaceTargets();
+    window.showToast("🚀 Target dimasukkan. AI memperbarui periodisasi makro.");
+  }
+
+  function deleteRaceTarget(id) {
+    targets = targets.filter(t => t.id !== id);
+    dbStore.save('targets', targets);
+    renderRaceTargets();
+  }
+
+  function generateAiHabitTargets() {
+    document.getElementById('aiHabitTargetText').innerHTML = `
+      Berdasarkan histori habit harian Anda yang konsisten melakukan 5K harian, AI menetapkan Target Volume Efektif Anda bulan ini adalah <b>160.0 Km</b>. <br><br>
+      <b>Saran Detak Jantung:</b> Pertahankan 75% sesi lari di rentang Zona 2 Aerobik (130-145 BPM) untuk mengoptimalkan kapilarisasi otot tanpa memicu kelelahan berlebih.
+    `;
+  }
+
+  function buildAiDynamicMenuPlan() {
+    const container = document.getElementById('aiDynamicTrainingMenu');
+    if(targets.length === 0) {
+      container.innerHTML = `<div style="color:var(--muted); font-size:0.85rem;">Tidak ada target aktif. Masukkan target balapan baru untuk merumuskan menu latihan harian otomatis.</div>`;
+      return;
+    }
+
+    const primaryTarget = targets[targets.length - 1].name;
+    container.innerHTML = `
+      <div style="background:rgba(255,255,255,0.02); padding:1.25rem; border-radius:10px; border-left:4px solid var(--purple); display:flex; flex-direction:column; gap:1.25rem;">
+        <div>
+          <div style="font-weight:700; color:#fff; margin-bottom:0.5rem;"><i class="fas fa-microchip"></i> Periodisasi Makro AI: "${primaryTarget}"</div>
+          <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Mengoptimalkan rutinitas lari 5K harian Anda ke dalam siklus latihan terstruktur untuk membangun kapasitas aerobik tanpa memicu kelelahan jantung ekstrem (overtraining).</div>
+        </div>
+
+        <!-- FASE PERIODISASI -->
+        <div class="ai-period-grid">
+          <div style="background:var(--card); padding:0.75rem; border-radius:8px; border: 1px solid rgba(0,212,255,0.1);">
+            <b style="color:var(--blue); font-size:0.85rem;">Fase 1: Base Building</b><br>
+            <span style="font-size:0.75rem; color:var(--muted);">Durasi: 4 Minggu<br>Fokus volume jarak lambat untuk meningkatkan kepadatan mitokondria.</span>
+          </div>
+          <div style="background:var(--card); padding:0.75rem; border-radius:8px; border: 1px solid rgba(255,107,53,0.1);">
+            <b style="color:var(--orange); font-size:0.85rem;">Fase 2: Build & Speed</b><br>
+            <span style="font-size:0.75rem; color:var(--muted);">Durasi: 3 Minggu<br>Kombinasi Tempo Run dan Interval Target Pace Lomba (Sub 5:41/km).</span>
+          </div>
+          <div style="background:var(--card); padding:0.75rem; border-radius:8px; border: 1px solid rgba(57,255,20,0.1);">
+            <b style="color:var(--green); font-size:0.85rem;">Fase 3: Tapering Peak</b><br>
+            <span style="font-size:0.75rem; color:var(--muted);">Durasi: 1 Minggu<br>Penurunan volume radikal hingga 50% menjaga kesegaran otot kaki.</span>
+          </div>
+        </div>
+
+        <!-- MENU HARIAN (DAILY TRAINING SUGGESTION) -->
+        <div>
+          <div style="font-weight:600; font-size:0.9rem; color:#fff; margin-bottom:0.75rem;"><i class="fas fa-calendar-day"></i> Rekomendasi Menu Latihan Mingguan Aktif (Fase 1)</div>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Senin:</b> <span style="font-size:0.8rem; color:var(--muted)">Rest Day</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--muted); background:rgba(255,255,255,0.05); padding:0.2rem 0.5rem; border-radius:4px;">Pemulihan Total / Stretching</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Selasa:</b> <span style="font-size:0.8rem; color:var(--blue)">Easy Recovery Run</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">5.0 Km @ Pace 6:30 (Zona 2 Heart Rate)</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Rabu:</b> <span style="font-size:0.8rem; color:var(--purple)">Tempo Intervals</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--purple); background:rgba(155,89,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">1.5 Km Warmup + 3x1 Km @ Pace 5:20 + 1 Km Cooldown</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Kamis:</b> <span style="font-size:0.8rem; color:var(--blue)">Aerobic Base Run</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">5.0 Km @ Pace 6:15 (Zona 2 Heart Rate)</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Jumat:</b> <span style="font-size:0.8rem; color:var(--muted)">Active Recovery</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--muted); background:rgba(255,255,255,0.05); padding:0.2rem 0.5rem; border-radius:4px;">Rest Day / Ringan Foam Rolling</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Sabtu:</b> <span style="font-size:0.8rem; color:var(--blue)">Short Shakeout Run</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">3.0 Km @ Pace 6:40 (Menjaga sirkulasi otot)</div>
+            </div>
+
+            <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Minggu:</b> <span style="font-size:0.8rem; color:var(--green)">Endurance Long Run</span></div>
+              <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--green); background:rgba(57,255,20,0.1); padding:0.2rem 0.5rem; border-radius:4px;">12.0 Km @ Pace 6:20 (Simulasi konstan jarak jauh)</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    `;
+  }
+</script>
+</body>
+</html>
