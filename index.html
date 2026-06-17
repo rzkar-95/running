@@ -458,11 +458,124 @@
 
 <!-- ═══════════════ ARCHITECTURE LOGIC ENGINE (VANILLA JS REST PERMANENT) ═══════════════ -->
 <script type="module">
+  // 1. IMPORT FIREBASE SDK & AUTHENTICATION
+  import { initializeApp } from "firebase/app";
+  import { getAnalytics } from "firebase/analytics";
+  import { 
+    getAuth, 
+    signInWithPopup, 
+    GoogleAuthProvider, 
+    onAuthStateChanged, 
+    signOut 
+  } from "firebase/auth";
+
+  // 2. KONFIGURASI FIREBASE RESMI (Sesuai Kredensial Gambar Anda)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBdjhc9C0_29-ztHR286MQR3gI20rwJtcw",
+    authDomain: "running-de1b9.firebaseapp.com",
+    projectId: "running-de1b9",
+    storageBucket: "running-de1b9.firebasestorage.app",
+    messagingSenderId: "918391188778",
+    appId: "1:918391188778:web:5272fdd473973a44384253",
+    measurementId: "G-97HXW2FM5M"
+  };
+  
+  // Inisialisasi Firebase Engine
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  // 3. DATABASE LOKAL (STATIONARY ENGINE)
   const dbStore = {
     save: (key, data) => localStorage.setItem(`runtrack_${key}`, JSON.stringify(data)),
     get: (key) => JSON.parse(localStorage.getItem(`runtrack_${key}`))
   };
 
+  let runs = [];
+  let targets = [];
+  let connections = { strava: false, garmin: false };
+
+  // 4. RUNTIME UTAMA SAAT HALAMAN DI-LOAD
+  window.onload = function() {
+    initializePermanentDatabase();
+    
+    // Memantau Status Login Pengguna Secara Real-Time Lewat Firebase
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        handleUserLoggedIn(user);
+      } else {
+        handleUserLoggedOut();
+      }
+    });
+    
+    // Mapping Fungsi ke Global Window Object agar Bisa Diakses Tombol HTML
+    window.handleAuth = handleAuth;
+    window.executeLogout = executeLogout;
+    window.switchPage = switchPage;
+    window.toggleConnect = toggleConnect;
+    window.addNewRaceTarget = addNewRaceTarget;
+    window.deleteRaceTarget = deleteRaceTarget;
+    window.loadMonthlySummary = loadMonthlySummary;
+    window.toggleProfileDropdown = toggleProfileDropdown;
+    window.changeAvatar = changeAvatar;
+  };
+
+  // 5. ENGINE UTAMA AUTENTIKASI GMAIL (FIREBASE AUTH)
+  async function handleAuth() {
+    try {
+      window.showToast("⏳ Menghubungkan ke Google Auth...");
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login Gagal:", error);
+      window.showToast("❌ Login Gagal: " + error.message);
+    }
+  }
+
+  async function executeLogout() {
+    try {
+      await signOut(auth);
+      window.showToast("🔒 Sesi berhasil keluar.");
+    } catch (error) {
+      window.showToast("❌ Gagal Logout.");
+    }
+  }
+
+  function handleUserLoggedIn(user) {
+    runs = dbStore.get('runs') || [];
+    targets = dbStore.get('targets') || [];
+    connections = dbStore.get('connections') || { strava: false, garmin: false };
+    
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    
+    // Otomatis ubah foto avatar sesuai dengan Akun Google Anda
+    if (user.photoURL) {
+      const uAvatar = document.getElementById('userAvatar');
+      const dAvatar = document.getElementById('dropdownAvatar');
+      if (uAvatar) uAvatar.src = user.photoURL;
+      if (dAvatar) dAvatar.src = user.photoURL;
+    }
+    
+    executeDashboardCalculations();
+    window.showToast(`👋 Selamat datang kembali, ${user.displayName || 'Runner'}!`);
+  }
+
+  function handleUserLoggedOut() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    
+    // Tampilkan rangkuman statistik preview di halaman depan sebelum login
+    const placeholderRuns = dbStore.get('runs') || [];
+    const totalKm = placeholderRuns.reduce((acc, r) => acc + r.distance, 0);
+    
+    const prevDistEl = document.getElementById('prevDist');
+    const prevEffortEl = document.getElementById('prevEffort');
+    if (prevDistEl) prevDistEl.textContent = totalKm.toFixed(1);
+    if (prevEffortEl) prevEffortEl.textContent = placeholderRuns.length ? Math.max(...placeholderRuns.map(r=>r.relativeEffort)) : 0;
+  }
+
+  // 6. GENERATOR DATA HISTORI DUMMY
   function initializePermanentDatabase() {
     if (!dbStore.get('runs')) {
       const generatedRuns = [];
@@ -505,85 +618,7 @@
     }
   }
 
-  let runs = [];
-  let targets = [];
-  let connections = { strava: false, garmin: false };
-
-  window.onload = function() {
-    initializePermanentDatabase();
-    checkAuthenticationState();
-    
-    window.handleAuth = handleAuth;
-    window.executeLogout = executeLogout;
-    window.switchPage = switchPage;
-    window.toggleConnect = toggleConnect;
-    window.addNewRaceTarget = addNewRaceTarget;
-    window.deleteRaceTarget = deleteRaceTarget;
-    window.loadMonthlySummary = loadMonthlySummary;
-    window.toggleProfileDropdown = toggleProfileDropdown;
-    window.changeAvatar = changeAvatar;
-  };
-
-  function checkAuthenticationState() {
-    const authSession = sessionStorage.getItem('runtrack_session');
-    if(authSession) {
-      runs = dbStore.get('runs') || [];
-      targets = dbStore.get('targets') || [];
-      connections = dbStore.get('connections') || { strava: false, garmin: false };
-      
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      
-      executeDashboardCalculations();
-    } else {
-      const placeholderRuns = dbStore.get('runs') || [];
-      const totalKm = placeholderRuns.reduce((acc, r) => acc + r.distance, 0);
-      document.getElementById('prevDist').textContent = totalKm.toFixed(1);
-      document.getElementById('prevEffort').textContent = Math.max(...placeholderRuns.map(r=>r.relativeEffort));
-    }
-  }
-
-  function handleAuth() {
-    sessionStorage.setItem('runtrack_session', 'true');
-    window.showToast("🔓 Authenticated via Google Cloud Security Ecosystem.");
-    checkAuthenticationState();
-  }
-
-  function executeLogout() {
-    sessionStorage.removeItem('runtrack_session');
-    location.reload();
-  }
-
-  function toggleProfileDropdown(e) {
-    e.stopPropagation();
-    document.getElementById('profileDropdown').classList.toggle('open');
-  }
-
-  document.addEventListener('click', () => {
-    document.getElementById('profileDropdown').classList.remove('open');
-  });
-
-  function changeAvatar(src) {
-    document.getElementById('userAvatar').src = src;
-    document.getElementById('dropdownAvatar').src = src;
-    window.showToast("👤 Profile avatar updated successfully.");
-  }
-
-  function switchPage(pageId, element) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById(`page-${pageId}`).classList.add('active');
-    element.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  window.showToast = function(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-  };
-
+  // 7. UTILITY & VISUAL ENGINE INTERFACE
   function executeDashboardCalculations() {
     renderFitnessAndFreshness();
     renderAutomationInterface();
@@ -597,6 +632,7 @@
   function renderFitnessAndFreshness() {
     const reversed = [...runs].reverse().slice(0, 30);
     const graphBox = document.getElementById('ffGraph');
+    if (!graphBox) return;
     graphBox.innerHTML = '';
 
     let currentFitness = 42; 
@@ -635,12 +671,14 @@
         document.getElementById('relativeEffortBig').textContent = run.relativeEffort;
         
         const statusEl = document.getElementById('relativeEffortStatus');
-        if (run.relativeEffort > 80) {
-          statusEl.textContent = "High Training Impulse";
-          statusEl.style.color = "var(--orange)";
-        } else {
-          statusEl.textContent = "Optimal Stimulus (Productive)";
-          statusEl.style.color = "var(--green)";
+        if (statusEl) {
+          if (run.relativeEffort > 80) {
+            statusEl.textContent = "High Training Impulse";
+            statusEl.style.color = "var(--orange)";
+          } else {
+            statusEl.textContent = "Optimal Stimulus (Productive)";
+            statusEl.style.color = "var(--green)";
+          }
         }
       }
     });
@@ -652,13 +690,17 @@
       const status = document.getElementById(`status${platform.charAt(0).toUpperCase() + platform.slice(1)}`);
       
       if(connections[platform]) {
-        btn.classList.add('active');
-        btn.innerHTML = `<i class="fas fa-check-circle"></i> Linked to ${platform.toUpperCase()}`;
-        status.innerHTML = `<div class="dot active"></div> <span style="color:var(--green)">Stream Active Sync</span>`;
+        if (btn) {
+          btn.classList.add('active');
+          btn.innerHTML = `<i class="fas fa-check-circle"></i> Linked to ${platform.toUpperCase()}`;
+        }
+        if (status) status.innerHTML = `<div class="dot active"></div> <span style="color:var(--green)">Stream Active Sync</span>`;
       } else {
-        btn.classList.remove('active');
-        btn.innerHTML = `Connect ${platform.toUpperCase()}`;
-        status.innerHTML = `<div class="dot"></div> <span style="color:var(--muted)">Pipeline Inactive</span>`;
+        if (btn) {
+          btn.classList.remove('active');
+          btn.innerHTML = `Connect ${platform.toUpperCase()}`;
+        }
+        if (status) status.innerHTML = `<div class="dot"></div> <span style="color:var(--muted)">Pipeline Inactive</span>`;
       }
     });
   }
@@ -675,6 +717,7 @@
     const completedDays = last7Days.filter(r => r.distance >= 5).length;
     
     const habitBox = document.getElementById('habitRealizationBox');
+    if (!habitBox) return;
     habitBox.innerHTML = `
       <div style="font-size:0.85rem; margin-bottom:0.25rem;">Daily 5K Streak Consistency</div>
       <div style="font-family:'Rajdhani', sans-serif; font-size:1.5rem; font-weight:700; color:var(--blue);">${completedDays} / 7 <span style="font-size:0.8rem; color:var(--muted)">Hari</span></div>
@@ -699,55 +742,65 @@
 
   function renderSegmentsAndStream() {
     const segmentBody = document.getElementById('segmentEffortBody');
-    segmentBody.innerHTML = `
-      <tr><td><b>Summarecon Loop Sprint</b></td><td>1.2 km</td><td>04:42</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
-      <tr><td><b>Sudirman Flyover Climb</b></td><td>0.8 km</td><td>03:15</td><td><span class="pr-badge" style="background:rgba(0,212,255,0.15); color:var(--blue);">PR Usaha #2</span></td></tr>
-      <tr><td><b>Bekasi Barat flat flat</b></td><td>2.5 km</td><td>11:04</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
-    `;
+    if (segmentBody) {
+      segmentBody.innerHTML = `
+        <tr><td><b>Summarecon Loop Sprint</b></td><td>1.2 km</td><td>04:42</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
+        <tr><td><b>Sudirman Flyover Climb</b></td><td>0.8 km</td><td>03:15</td><td><span class="pr-badge" style="background:rgba(0,212,255,0.15); color:var(--blue);">PR Usaha #2</span></td></tr>
+        <tr><td><b>Bekasi Barat flat flat</b></td><td>2.5 km</td><td>11:04</td><td><span class="pr-badge">PR Usaha #1</span></td></tr>
+      `;
+    }
 
     const lastRun = runs[0];
     if(lastRun) {
       const hrBox = document.getElementById('hrZoneBox');
       const hrZones = ['Z1 Active Recovery', 'Z2 Aerobic Endurance', 'Z3 Tempo Threshold', 'Z4 Anaerobic Capacity', 'Z5 Max VO2'];
-      hrBox.innerHTML = lastRun.hrZone.map((val, idx) => `
-        <div class="zone-row">
-          <div class="zone-lbl">${hrZones[idx].substring(0,2)}</div>
-          <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--orange);"></div></div>
-          <div class="zone-val">${val}%</div>
-        </div>
-      `).join('');
+      if (hrBox) {
+        hrBox.innerHTML = lastRun.hrZone.map((val, idx) => `
+          <div class="zone-row">
+            <div class="zone-lbl">${hrZones[idx].substring(0,2)}</div>
+            <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--orange);"></div></div>
+            <div class="zone-val">${val}%</div>
+          </div>
+        `).join('');
+      }
 
       const paceBox = document.getElementById('paceZoneBox');
       const paceZones = ['Easy Pace', 'Marathon Pace', 'Threshold Pace', 'Interval Pace', 'Repetition'];
-      paceBox.innerHTML = lastRun.paceZone.map((val, idx) => `
-        <div class="zone-row">
-          <div class="zone-lbl">${paceZones[idx].substring(0,4)}</div>
-          <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--purple);"></div></div>
-          <div class="zone-val">${val}%</div>
-        </div>
-      `).join('');
+      if (paceBox) {
+        paceBox.innerHTML = lastRun.paceZone.map((val, idx) => `
+          <div class="zone-row">
+            <div class="zone-lbl">${paceZones[idx].substring(0,4)}</div>
+            <div class="zone-bar-bg"><div class="zone-bar-fg" style="width:${val}%; background:var(--purple);"></div></div>
+            <div class="zone-val">${val}%</div>
+          </div>
+        `).join('');
+      }
     }
 
     const container = document.getElementById('runStreamContainer');
-    container.innerHTML = runs.map(r => `
-      <div class="run-node">
-        <div class="run-node-main">
-          <div class="run-node-icon">${r.source === 'Strava' ? '🧡' : '💙'}</div>
-          <div class="run-node-info">
-            <div class="run-node-title">${r.title}</div>
-            <div class="run-node-meta">${r.date} &bull; API Sync</div>
+    if (container) {
+      container.innerHTML = runs.map(r => `
+        <div class="run-node">
+          <div class="run-node-main">
+            <div class="run-node-icon">${r.source === 'Strava' ? '🧡' : '💙'}</div>
+            <div class="run-node-info">
+              <div class="run-node-title">${r.title}</div>
+              <div class="run-node-meta">${r.date} &bull; API Sync</div>
+            </div>
+          </div>
+          <div class="run-node-data">
+            <div class="run-node-val">${r.distance.toFixed(1)} Km</div>
+            <div class="run-node-lbl">${r.duration}m &bull; ${r.heartRate} bpm</div>
           </div>
         </div>
-        <div class="run-node-data">
-          <div class="run-node-val">${r.distance.toFixed(1)} Km</div>
-          <div class="run-node-lbl">${r.duration}m &bull; ${r.heartRate} bpm</div>
-        </div>
-      </div>
-    `).join('');
+      `).join('');
+    }
   }
 
   function renderRaceTargets() {
     const container = document.getElementById('targetListContainer');
+    if (!container) return;
+    
     if (targets.length === 0) {
       container.innerHTML = `<div style="font-size:0.85rem; color:var(--muted); text-align:center; padding: 2rem 0;">Belum ada target kustom yang dimasukkan.</div>`;
     } else {
@@ -789,14 +842,18 @@
   }
 
   function generateAiHabitTargets() {
-    document.getElementById('aiHabitTargetText').innerHTML = `
+    const aiText = document.getElementById('aiHabitTargetText');
+    if (!aiText) return;
+    aiText.innerHTML = `
       Berdasarkan histori habit harian Anda yang konsisten melakukan 5K harian, AI menetapkan Target Volume Efektif Anda bulan ini adalah <b>160.0 Km</b>. <br><br>
-      <b>Saran Detak Jantung:</b> Pertahankan 75% sesi lari di rentang Zona 2 Aerobik (130-145 BPM) untuk mengoptimalkan kapilarisasi otot tanpa memicu kelelahan berlebih.
+      <b>Saran Detak Jantung:</b> Pertahankan 75% sesi lari di rentang Zona 2 Aerobik (130-145 BPM) untuk mengoptimalkan kapilarisasi otot tanpa memicu kelelahan jantung ekstrem (overtraining).
     `;
   }
 
   function buildAiDynamicMenuPlan() {
     const container = document.getElementById('aiDynamicTrainingMenu');
+    if (!container) return;
+    
     if(targets.length === 0) {
       container.innerHTML = `<div style="color:var(--muted); font-size:0.85rem;">Tidak ada target aktif. Masukkan target balapan baru untuk merumuskan menu latihan harian otomatis.</div>`;
       return;
@@ -807,10 +864,9 @@
       <div style="background:rgba(255,255,255,0.02); padding:1.25rem; border-radius:10px; border-left:4px solid var(--purple); display:flex; flex-direction:column; gap:1.25rem;">
         <div>
           <div style="font-weight:700; color:#fff; margin-bottom:0.5rem;"><i class="fas fa-microchip"></i> Periodisasi Makro AI: "${primaryTarget}"</div>
-          <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Mengoptimalkan rutinitas lari 5K harian Anda ke dalam siklus latihan terstruktur untuk membangun kapasitas aerobik tanpa memicu kelelahan jantung ekstrem (overtraining).</div>
+          <div style="font-size:0.85rem; color:var(--muted); line-height:1.5;">Mengoptimalkan rutinitas lari 5K harian Anda ke dalam siklus latihan terstruktur untuk membangun kapasitas aerobik tanpa memicu kelelahan jantung ekstrem.</div>
         </div>
 
-        <!-- FASE PERIODISASI -->
         <div class="ai-period-grid">
           <div style="background:var(--card); padding:0.75rem; border-radius:8px; border: 1px solid rgba(0,212,255,0.1);">
             <b style="color:var(--blue); font-size:0.85rem;">Fase 1: Base Building</b><br>
@@ -826,51 +882,81 @@
           </div>
         </div>
 
-        <!-- MENU HARIAN (DAILY TRAINING SUGGESTION) -->
         <div>
           <div style="font-weight:600; font-size:0.9rem; color:#fff; margin-bottom:0.75rem;"><i class="fas fa-calendar-day"></i> Rekomendasi Menu Latihan Mingguan Aktif (Fase 1)</div>
           <div style="display:flex; flex-direction:column; gap:0.5rem;">
-            
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Senin:</b> <span style="font-size:0.8rem; color:var(--muted)">Rest Day</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--muted); background:rgba(255,255,255,0.05); padding:0.2rem 0.5rem; border-radius:4px;">Pemulihan Total / Stretching</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Selasa:</b> <span style="font-size:0.8rem; color:var(--blue)">Easy Recovery Run</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">5.0 Km @ Pace 6:30 (Zona 2 Heart Rate)</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Rabu:</b> <span style="font-size:0.8rem; color:var(--purple)">Tempo Intervals</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--purple); background:rgba(155,89,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">1.5 Km Warmup + 3x1 Km @ Pace 5:20 + 1 Km Cooldown</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Kamis:</b> <span style="font-size:0.8rem; color:var(--blue)">Aerobic Base Run</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">5.0 Km @ Pace 6:15 (Zona 2 Heart Rate)</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Jumat:</b> <span style="font-size:0.8rem; color:var(--muted)">Active Recovery</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--muted); background:rgba(255,255,255,0.05); padding:0.2rem 0.5rem; border-radius:4px;">Rest Day / Ringan Foam Rolling</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Sabtu:</b> <span style="font-size:0.8rem; color:var(--blue)">Short Shakeout Run</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--blue); background:rgba(0,212,255,0.1); padding:0.2rem 0.5rem; border-radius:4px;">3.0 Km @ Pace 6:40 (Menjaga sirkulasi otot)</div>
             </div>
-
             <div style="background:var(--card); padding:0.75rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
               <div style="flex:1; min-width:120px;"><b style="color:var(--text)">Minggu:</b> <span style="font-size:0.8rem; color:var(--green)">Endurance Long Run</span></div>
               <div style="font-family:'Rajdhani',sans-serif; font-size:0.85rem; color:var(--green); background:rgba(57,255,20,0.1); padding:0.2rem 0.5rem; border-radius:4px;">12.0 Km @ Pace 6:20 (Simulasi konstan jarak jauh)</div>
             </div>
-
           </div>
         </div>
       </div>
     `;
   }
+
+  function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+  }
+
+  document.addEventListener('click', () => {
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) dropdown.classList.remove('open');
+  });
+
+  function changeAvatar(src) {
+    const uAvatar = document.getElementById('userAvatar');
+    const dAvatar = document.getElementById('dropdownAvatar');
+    if (uAvatar) uAvatar.src = src;
+    if (dAvatar) dAvatar.src = src;
+    window.showToast("👤 Profile avatar updated successfully.");
+  }
+
+  function switchPage(pageId, element) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    
+    const pageEl = document.getElementById(`page-${pageId}`);
+    if (pageEl) pageEl.classList.add('active');
+    if (element) element.classList.add('active');
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  window.showToast = function(msg) {
+    const t = document.getElementById('toast');
+    if (t) {
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+  };
 </script>
 </body>
 </html>
